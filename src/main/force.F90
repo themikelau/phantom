@@ -912,6 +912,7 @@ subroutine compute_forces(i,iamgasi,iamdusti,xpartveci,hi,hi1,hi21,hi41,gradhi,g
  real    :: rhoj,prj,rhoav1
  real    :: hj1,hj21,q2j,qj,vwavej,divvj
  real    :: dvdxi(9),dvdxj(9)
+ real    :: projvstar
 #ifdef GRAVITY
  real    :: fmi,fmj,dsofti,dsoftj
  logical :: add_contribution
@@ -1516,7 +1517,8 @@ subroutine compute_forces(i,iamgasi,iamdusti,xpartveci,hi,hi1,hi21,hi41,gradhi,g
           !--artificial thermal conductivity (need j term)
           if (maxvxyzu >= 4) then
              if (gravity) then
-                vsigu = abs(projv)
+                call reconstruct_dv(projv,dx,dy,dz,runix,runiy,runiz,dvdxi,dvdxj,pmassi,pmassj,projvstar,2) ! irecon = 2 hardcoded here
+                vsigu = abs(projvstar)
              else
                 rhoav1 = 2./(rhoi + rhoj)
                 vsigu = sqrt(abs(pri - prj)*rhoav1)  !abs(projv) !sqrt(abs(denij))
