@@ -21,8 +21,8 @@
 
 .KEEP_STATE:
 
-PHANTOM_VERSION_MAJOR=1
-PHANTOM_VERSION_MINOR=4
+PHANTOM_VERSION_MAJOR=2021
+PHANTOM_VERSION_MINOR=0
 PHANTOM_VERSION_MICRO=0
 VERSION=$(PHANTOM_VERSION_MAJOR).$(PHANTOM_VERSION_MINOR).$(PHANTOM_VERSION_MICRO)
 
@@ -296,6 +296,13 @@ ifeq ($(SETUP), grdisc)
     CONST_AV=yes
 endif
 
+ifeq ($(SETUP), firehose)
+#   injection of a stream of gas as a firehose
+    SRCINJECT= inject_firehose.f90
+    SETUPFILE= setup_firehose.f90
+    KNOWN_SETUP=yes
+endif
+
 ifeq ($(SETUP), adiabaticdisc)
 #   adiabatic disc
     DISC_VISCOSITY=yes
@@ -304,7 +311,16 @@ ifeq ($(SETUP), adiabaticdisc)
     KNOWN_SETUP=yes
     IND_TIMESTEPS=yes
     ISOTHERMAL=no
-    MULTIRUNFILE= multirun.f90
+endif
+
+ifeq ($(SETUP), raddisc)
+#   adiabatic disc with radiation
+    DISC_VISCOSITY=yes
+    SETUPFILE= setup_disc.f90
+    ANALYSIS= analysis_disc.f90
+    KNOWN_SETUP=yes
+    #IND_TIMESTEP=yes
+    RADIATION=yes
 endif
 
 ifeq ($(SETUP), lightcurvedisc)
@@ -825,6 +841,19 @@ ifeq ($(SETUP), star)
     STORE_TEMP=yes
 endif
 
+ifeq ($(SETUP), radstar)
+#   setup a star as in the star setup but with radiation
+    SETUPFILE= setup_star.f90
+    MODFILE= utils_binary.f90 set_binary.f90 moddump_binary.f90
+    ANALYSIS= ${SRCNIMHD} utils_summary.o utils_omp.o ptmass.o energies.o analysis_common_envelope.F90
+    KNOWN_SETUP=yes
+    IND_TIMESTEPS=no
+    MAXP=10000000
+    GRAVITY=yes
+    RADIATION=yes
+    STORE_TEMP=yes
+endif
+
 ifeq ($(SETUP), isowind)
 #   isothermal spherical wind
     FPPFLAGS= -DWIND -DSINK_RADIATION
@@ -1129,7 +1158,7 @@ ifeq ($(MCFOST), yes)
     FPPFLAGS+= -DMCFOST
     LDFLAGS+= -I$(MCFOST_INCLUDE) -I$(MCFOST_INCLUDE)/voro++ -I$(MCFOST_INCLUDE)/hdf5 -I$(MCFOST_INCLUDE)/$(FC) \
 	-L$(MCFOST_DIR)/src -lmcfost -L$(MCFOST_LIBS) $(LIBCXX) -lcfitsio -lvoro++ -lsprng \
-	-L$(HDF5ROOT)/lib/Intel -lhdf5_fortran -L$(HDF5ROOT)/lib -lhdf5 #-lxgboost -ldmlc -lrabit -lhdf5_fortran -lhdf5 -lz
+	-L$(HDF5ROOT)/lib/Intel -lhdf5_fortran -L$(HDF5ROOT)/lib -lhdf5 -lz #-lxgboost -ldmlc -lrabit -lhdf5_fortran -lhdf5 -lz
 endif
 
 
@@ -1859,8 +1888,8 @@ SRCSETUP= utils_omp.F90 utils_sort.f90 utils_timing.f90 utils_summary.F90 utils_
           mpi_balance.F90 set_dust_options.f90 \
           utils_indtimesteps.F90 partinject.F90 stack.F90 mpi_dens.F90 mpi_force.F90 mpi_derivs.F90 \
           ${SRCTURB} ${SRCNIMHD} ${SRCCHEM} \
-          ptmass.F90 energies.F90 density_profiles.f90 \
-          set_slab.f90 set_disc.F90 relax_star.f90 set_softened_core.f90 set_fixedentropycore.f90\
+          ptmass.F90 energies.F90 density_profiles.f90 set_slab.f90 set_disc.F90 relax_star.f90 \
+	  set_cubic_core.f90 set_fixedentropycore.f90 set_softened_core.f90 \
           set_vfield.f90 sort_particles.F90 dust_formation.F90 ptmass_radiation.F90 ${SRCINJECT} \
           ${SETUPFILE} checksetup.F90 \
           set_Bfield.f90 damping.f90 readwrite_infile.f90 ${SRCKROME}
