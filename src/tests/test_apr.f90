@@ -39,9 +39,11 @@ subroutine test_apr(ntests,npass)
  use mpidomain,    only:i_belong
  use mpiutils,     only:reduceall_mpi
  use dim,          only:periodic,use_apr
- use apr,          only:apr_centre,update_apr
+ use apr,          only:update_apr
+ use apr_region,   only:apr_centre
+ use energies,   only:compute_energies,angtot,etot,totmom
  integer, intent(inout) :: ntests,npass
- real :: psep,rhozero,time,totmass
+ real :: psep,rhozero,time,totmass, etotin, totmomin,angmomin
  integer :: original_npart,splitted,nfailed(1)
 
  if (use_apr) then
@@ -66,14 +68,29 @@ subroutine test_apr(ntests,npass)
  massoftype(igas) = totmass/reduceall_mpi('+',npart)
  iphase(1:npart) = isetphase(igas,iactive=.true.)
 
+ ! Set some velocities
+ vxyzu(:,1:npart) = 1.0
+
+ ! Initialise by calculating energies
+ call compute_energies(0.)
+ etotin   = etot
+ totmomin = totmom
+ angmomin = angtot
+
  ! Now set up an APR zone
  call setup_apr_region_for_test()
+
+ ! Check to see if things have been conserved
+ call compute_energies(0.)
+ print*,'energy:',etotin,etot
+ print*,'momentum:',totmomin,totmom
+ print*,'angmomin:',angmomin,angtot
 
  ! after splitting, the total number of particles should have been updated
  splitted = npart
 
  ! Move the apr zone out of the box and update again to merge
- apr_centre(:) = 20.
+ apr_centre(:,1) = 20.
  call update_apr(npart,xyzh,vxyzu,fxyzu,apr_level)
 
  ! Check that the original particle number returns
@@ -90,8 +107,8 @@ end subroutine test_apr
 !+
 !--------------------------------------------
 subroutine setup_apr_region_for_test()
- use apr,  only:init_apr,update_apr,apr_max_in,ref_dir
- use apr,  only:apr_type,apr_rad
+ use apr,  only:init_apr,update_apr
+ use apr_region,  only:apr_type,apr_rad,apr_max_in,ref_dir
  use part, only:npart,xyzh,vxyzu,fxyzu,apr_level
  integer :: ierr
 
