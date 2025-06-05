@@ -57,7 +57,7 @@ subroutine set_apr_centre(apr_type,apr_centre,ntrack,track_part)
  real,    intent(out) :: apr_centre(3,ntrack_max)
  integer, optional, intent(in) :: ntrack,track_part(:)
  integer :: ii
- real :: xcom(3), vcom(3)
+ real :: xcom(3), vcom(3),sink_sep
 
  select case (apr_type)
 
@@ -97,6 +97,16 @@ subroutine set_apr_centre(apr_type,apr_centre,ntrack,track_part)
     dynamic_apr = .true.
     !call run_apr_disc_analysis(100,xyzh,vxyzu,apr_H)
 
+ case(7) ! common envelope companion
+    dynamic_apr = .true.
+    apr_centre(1,1) = xyzmh_ptmass(1,track_part(1))
+    apr_centre(2,1) = xyzmh_ptmass(2,track_part(1))
+    apr_centre(3,1) = xyzmh_ptmass(3,track_part(1))
+    sink_sep = sqrt(dot_product(xyzmh_ptmass(1:3,nptmass) - xyzmh_ptmass(1:3,nptmass-1),&
+                                xyzmh_ptmass(1:3,nptmass) - xyzmh_ptmass(1:3,nptmass-1)))
+    apr_rad = min(20., 0.4*sink_sep/real(apr_max-2))
+    apr_drad = apr_rad
+
  case default ! used for the test suite
     apr_centre(:,1) = 0.
 
@@ -130,6 +140,23 @@ subroutine set_apr_regions(ref_dir,apr_max,apr_regions,apr_rad,apr_drad)
  endif
 
 end subroutine set_apr_regions
+
+!-----------------------------------------------------------------------
+!+
+!  Query function to return whether apr_type needs tracking
+!+
+!-----------------------------------------------------------------------
+logical function apr_tracks_sink(apr_type_local)
+ integer, intent(in) :: apr_type_local
+
+ select case(apr_type_local)
+ case(2,4,7)
+    apr_tracks_sink = .true.
+ case default
+    apr_tracks_sink = .false.
+ end select
+
+end function apr_tracks_sink
 
 !-----------------------------------------------------------------------
 !+
@@ -333,12 +360,11 @@ subroutine read_options_apr(name,valstring,imatch,igotall,ierr)
     if (apr_drad  <  tiny(apr_drad)) call fatal(label,'apr_drad too small in input options')
  case default
     imatch = .false.
-    select case(apr_type)
-    case(1)
+    if (apr_tracks_sink(apr_type)) then
        call read_options_apr1(name,valstring,imatch,igotall1,ierr)
-    case(2,4)
+    else
        call read_options_apr2(name,valstring,imatch,igotall2,ierr)
-    end select
+    endif
  end select
  igotall = (ngot >= 5) .and. igotall1 .and. igotall2
 
@@ -410,16 +436,13 @@ subroutine write_options_apr(iunit)
  call write_inopt(ref_dir,'ref_dir','increase (1) or decrease (-1) resolution',iunit)
  call write_inopt(apr_type,'apr_type','1: static, 2: sink, 3: clumps, 4: sequential sinks, 5: com, 6: vertical',iunit)
 
- select case (apr_type)
- case (1)
+ if (apr_tracks_sink(apr_type)) then
+    call write_inopt(read_track_part,'track_part','number of sink to track',iunit)
+ else
     call write_inopt(apr_centre_in(1),'apr_centre(1)','centre of region x position',iunit)
     call write_inopt(apr_centre_in(2),'apr_centre(2)','centre of region y position',iunit)
     call write_inopt(apr_centre_in(3),'apr_centre(3)','centre of region z position',iunit)
- case(2,4)
-    call write_inopt(read_track_part,'track_part','number of sink to track',iunit)
- case default
-   ! write nothing
- end select
+ endif
 
  call write_inopt(apr_rad,'apr_rad','radius of innermost region',iunit)
  call write_inopt(apr_drad,'apr_drad','size of step to next region',iunit)

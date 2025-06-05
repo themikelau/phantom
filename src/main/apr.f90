@@ -104,8 +104,8 @@ subroutine init_apr(apr_level,ierr)
    ntrack_max = 1
  endif
  allocate(apr_centre(3,ntrack_max),track_part(ntrack_max))
- if (apr_type == 2) then
-   track_part(1) = read_track_part
+ if ((apr_type == 2) .or. (apr_type == 7)) then
+    track_part(1) = read_track_part
  endif
  apr_centre(:,:) = 0.
  apr_centre(:,1) = apr_centre_in(:) ! from the .in file
